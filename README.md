@@ -84,4 +84,6 @@ Once running, view the OpenAPI documentation at http://localhost:8000/docs
 
 ## Development
 
+> **Note:** Use `docker compose` instead of `docker-compose` as the latter is deprecated. The hyphenated version is a legacy Python-based implementation that will eventually be removed.
+
 The service is structured to be easily extensible. The current implementation adds basic refinements, but you can enhance the transformation logic in the `/refine-prompt` endpoint.
