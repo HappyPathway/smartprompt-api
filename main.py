@@ -9,6 +9,11 @@ from typing import Optional, List
 from enum import Enum
 import openai
 from dotenv import load_dotenv
+import aioredis
+import json
+from prometheus_fastapi_instrumentator import Instrumentator
+import hashlib
+from datetime import timedelta
 
 # Load environment variables
 load_dotenv()
@@ -17,6 +22,10 @@ load_dotenv()
 openai.api_key = os.getenv("OPENAI_API_KEY")
 if not openai.api_key:
     raise RuntimeError("OPENAI_API_KEY environment variable is required")
+
+# Configure Redis
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379")
+CACHE_TTL = int(os.getenv("CACHE_TTL_SECONDS", "3600"))
 
 # Configure JSON logging
 logger = logging.getLogger()
@@ -31,6 +40,22 @@ app = FastAPI(
     description="API for refining 'lazy' prompts into high-quality prompts using AI",
     version="1.0.0"
 )
+
+# Add Prometheus metrics
+Instrumentator().instrument(app).expose(app)
+
+# Redis connection pool
+redis = None
+
+@app.on_event("startup")
+async def startup_event():
+    global redis
+    redis = await aioredis.from_url(REDIS_URL, decode_responses=True)
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if redis:
+        await redis.close()
 
 class DomainType(str, Enum):
     ARCHITECTURE = "architecture"
@@ -62,6 +87,29 @@ class PromptResponse(BaseModel):
     refined_prompt: str
     detected_topics: List[str]
     recommended_references: Optional[List[str]]
+    cached: bool = Field(False, description="Whether the response was served from cache")
+
+def generate_cache_key(request: PromptRequest) -> str:
+    """Generate a unique cache key for a prompt request."""
+    key_data = {
+        "lazy_prompt": request.lazy_prompt,
+        "domain": request.domain,
+        "expertise_level": request.expertise_level,
+        "output_format": request.output_format,
+        "include_best_practices": request.include_best_practices,
+        "include_examples": request.include_examples
+    }
+    key_string = json.dumps(key_data, sort_keys=True)
+    return f"prompt:{hashlib.sha256(key_string.encode()).hexdigest()}"
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint that verifies Redis connectivity."""
+    try:
+        await redis.ping()
+        return {"status": "healthy", "redis": "connected"}
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"Redis health check failed: {str(e)}")
 
 async def detect_topics(prompt: str) -> List[str]:
     """Use OpenAI to detect key technical topics in the prompt."""
@@ -86,6 +134,13 @@ async def enhance_prompt(request: PromptRequest) -> PromptResponse:
     Transform a lazy prompt into a sophisticated one using OpenAI,
     incorporating domain expertise, best practices, and proper structure.
     """
+    # Check cache first
+    cache_key = generate_cache_key(request)
+    cached_response = await redis.get(cache_key)
+    if cached_response:
+        response_data = json.loads(cached_response)
+        return PromptResponse(**response_data, cached=True)
+
     # Build the system prompt based on request parameters
     system_prompts = {
         "architecture": "You are an experienced Systems Architect with deep knowledge of software architecture patterns, scalability, and enterprise systems.",
@@ -145,11 +200,21 @@ Format: {format_templates[request.output_format]}
             )
             recommended_refs = refs_response.choices[0].message.content.strip().split("\n")
 
-        return PromptResponse(
+        response = PromptResponse(
             refined_prompt=refined,
             detected_topics=topics,
-            recommended_references=recommended_refs if recommended_refs else None
+            recommended_references=recommended_refs if recommended_refs else None,
+            cached=False
         )
+
+        # Cache the response
+        await redis.setex(
+            cache_key,
+            timedelta(seconds=CACHE_TTL),
+            json.dumps(response.dict(exclude={'cached'}))
+        )
+
+        return response
 
     except Exception as e:
         logger.error(f"Error enhancing prompt: {str(e)}")
@@ -171,7 +236,8 @@ async def refine_prompt(request: PromptRequest):
     
     logger.info("Prompt refined successfully", extra={
         "detected_topics": response.detected_topics,
-        "has_references": bool(response.recommended_references)
+        "has_references": bool(response.recommended_references),
+        "cached": response.cached
     })
     
     return response

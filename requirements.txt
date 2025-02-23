@@ -6,3 +6,7 @@ pytest>=6.0.0
 httpx>=0.18.0
 openai>=1.0.0
 python-dotenv>=1.0.0
+redis>=5.0.1
+aioredis>=2.0.1
+prometheus-client>=0.17.1
+prometheus-fastapi-instrumentator>=6.1.1
