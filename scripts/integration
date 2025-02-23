@@ -67,38 +67,45 @@ class PromptGenerator:
                     raise Exception(f"API error: {error_data.get('detail', 'Unknown error')}")
                 
                 data = await response.json()
+                logger.info(f"Successfully generated prompt with {len(data.get('detected_topics', []))} topics")
                 return data
         except Exception as e:
             logger.error(f"Error generating prompt: {str(e)}")
             raise
 
     async def save_prompt_file(self, data: dict, output_path: str):
-        """Save the generated prompt to a file"""
+        """Save the generated prompt to a file with proper formatting"""
         try:
             output_file = Path(output_path)
             output_file.parent.mkdir(parents=True, exist_ok=True)
             
-            # Create a complete markdown document
-            content = f"""# How to Design VPC Architecture
+            # Use the prompt file content if available, otherwise build our own
+            if data.get('prompt_file_content'):
+                content = data['prompt_file_content']
+            else:
+                # Create a structured markdown document
+                title = data.get('lazy_prompt', '').capitalize()
+                content = f"""# {title}
 
-## Overview
+## Refined Prompt
 {data['refined_prompt']}
 
-## Topics
+## Domain Context
+- **Domain**: {data.get('domain', 'general').capitalize()}
+- **Expertise Level**: {data.get('expertise_level', 'intermediate').capitalize()}
 """
-            for topic in data['detected_topics']:
-                content += f"\n### {topic}\n"
-                if data.get('topic_details') and topic in data['topic_details']:
-                    content += f"{data['topic_details'][topic]}\n"
+                
+                if data.get('detected_topics'):
+                    content += "\n## Key Topics\n"
+                    for topic in data['detected_topics']:
+                        content += f"\n### {topic}\n"
+                        if data.get('topic_details') and topic in data['topic_details']:
+                            content += f"{data['topic_details'][topic]}\n"
 
-            if data.get('recommended_references'):
-                content += "\n## References\n"
-                for ref in data['recommended_references']:
-                    content += f"- {ref}\n"
-
-            if data.get('prompt_file_content'):
-                content += "\n## Additional Content\n"
-                content += data['prompt_file_content']
+                if data.get('recommended_references'):
+                    content += "\n## Recommended References\n"
+                    for ref in data['recommended_references']:
+                        content += f"- {ref}\n"
 
             # Write the file
             output_file.write_text(content)
@@ -110,7 +117,7 @@ class PromptGenerator:
 
 async def generate_prompt_file(args):
     """Generate a prompt file using command line arguments"""
-    generator = PromptGenerator(API_BASE_URL, os.getenv("OPENAI_API_KEY"))
+    generator = PromptGenerator(args.api_url, args.api_key)
     
     try:
         await generator.setup()
@@ -313,6 +320,14 @@ def main():
                            help="Output format")
     gen_parser.add_argument("--output", "-o", default="prompt.md",
                            help="Output file path")
+    gen_parser.add_argument("--api-url", default=os.getenv("SMARTPROMPT_API_URL", API_BASE_URL),
+                           help="API URL (can also be set via SMARTPROMPT_API_URL env var)")
+    gen_parser.add_argument("--api-key", default=os.getenv("SMARTPROMPT_API_KEY"),
+                           help="API key (can also be set via SMARTPROMPT_API_KEY env var)")
+    gen_parser.add_argument("--no-best-practices", action="store_true",
+                           help="Disable inclusion of best practices")
+    gen_parser.add_argument("--no-examples", action="store_true",
+                           help="Disable inclusion of examples")
     
     args = parser.parse_args()
     
