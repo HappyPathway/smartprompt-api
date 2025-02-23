@@ -8,3 +8,9 @@ Create a FastAPI-based REST API service that refines “lazy” prompts into hig
 - Include any necessary configuration for running the FastAPI application (for example, instructions to run using Uvicorn).
 
 Your code should be modular and well-documented, so that it can be extended later with a more sophisticated prompt transformation algorithm. Use Python type hints and best practices for structuring a FastAPI application.
+
+# enhance_prompt
+the enhance prompt route will need to make a call to OpenAI and send the lazy prompt and have the OpenAI library convert it into a high quality prompt. We'll need to 
+add to the initial prompt using this service. We'll want to research industry
+wide best practices for whatevers being asked and add to it. The persona of the AI
+will need to be that of a systems architect. 

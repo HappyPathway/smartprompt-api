@@ -53,3 +53,35 @@ This repository includes:
 ## Contributing
 
 Please see the [CONTRIBUTING.md](.github/CONTRIBUTING.md) file for guidelines.
+
+# Smart Prompt API
+
+A FastAPI service that transforms simple "lazy" prompts into refined, high-quality prompts.
+
+## Quick Start
+
+1. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+2. Run the service:
+```bash
+uvicorn main:app --reload
+```
+
+The API will be available at http://localhost:8000
+
+## API Documentation
+
+Once running, view the OpenAPI documentation at http://localhost:8000/docs
+
+### Endpoints
+
+- POST /refine-prompt
+  - Input: JSON with "lazy_prompt" field
+  - Output: JSON with "refined_prompt" field
+
+## Development
+
+The service is structured to be easily extensible. The current implementation adds basic refinements, but you can enhance the transformation logic in the `/refine-prompt` endpoint.
