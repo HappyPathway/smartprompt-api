@@ -1,0 +1,107 @@
+version: '3.8'
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    networks:
+      - test-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 3
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - LOG_LEVEL=DEBUG
+      - ENVIRONMENT=test
+    ports:
+      - "8000:8000"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - test-network
+    volumes:
+      - .:/app
+      - ./test_results:/app/test_results
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  integration-tests:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - API_URL=http://api:8000
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - REDIS_URL=redis://redis:6379
+      - TEST_MODE=integration
+    depends_on:
+      api:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - ./test_results:/app/test_results
+    networks:
+      - test-network
+    command: >
+      sh -c "wait-for-it api:8000 -t 30 --
+             pytest tests/integration --verbose --junitxml=/app/test_results/integration.xml"
+
+  redis-test:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+
+  elasticsearch-test:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.1
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ports:
+      - "9201:9200"
+    networks:
+      - test-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:9200/_cluster/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  api-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    environment:
+      - OPENAI_API_KEY=test-key
+      - REDIS_URL=redis://redis-test:6379
+      - ELASTICSEARCH_URL=http://elasticsearch-test:9200
+      - LOG_LEVEL=DEBUG
+      - TESTING=true
+    depends_on:
+      - redis-test
+      - elasticsearch-test
+    networks:
+      - test-network
+    volumes:
+      - .:/app
+
+networks:
+  test-network:
+    driver: bridge

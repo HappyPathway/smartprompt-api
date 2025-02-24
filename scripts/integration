@@ -1,0 +1,343 @@
+#!/usr/bin/env python3
+"""
+Integration test script for SmartPrompt API endpoints.
+This script can also be used as a basic prompt file generator.
+"""
+
+import asyncio
+import aiohttp
+import json
+import sys
+import os
+import logging
+import argparse
+from typing import Dict, Any
+from datetime import datetime
+from pathlib import Path
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
+
+# API Configuration
+API_BASE_URL = "http://localhost:8000"
+TEST_API_KEY = "test-key-123"  # Replace with your test API key when auth is implemented
+
+class PromptGenerator:
+    def __init__(self, base_url: str, api_key: str = None):
+        self.base_url = base_url
+        self.headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": api_key
+        } if api_key else {"Content-Type": "application/json"}
+        self.session = None
+
+    async def setup(self):
+        """Initialize aiohttp session"""
+        self.session = aiohttp.ClientSession(headers=self.headers)
+
+    async def cleanup(self):
+        """Close aiohttp session"""
+        if self.session:
+            await self.session.close()
+
+    async def generate_prompt(self, prompt: str, domain: str = "general", 
+                            expertise_level: str = "intermediate", 
+                            output_format: str = "detailed") -> dict:
+        """Generate a prompt file using the API"""
+        try:
+            payload = {
+                "lazy_prompt": prompt,
+                "domain": domain,
+                "expertise_level": expertise_level,
+                "output_format": output_format,
+                "include_best_practices": True,
+                "include_examples": True
+            }
+            
+            async with self.session.post(
+                f"{self.base_url}/refine-prompt",
+                json=payload
+            ) as response:
+                if response.status != 200:
+                    error_data = await response.json()
+                    raise Exception(f"API error: {error_data.get('detail', 'Unknown error')}")
+                
+                data = await response.json()
+                logger.info(f"Successfully generated prompt with {len(data.get('detected_topics', []))} topics")
+                return data
+        except Exception as e:
+            logger.error(f"Error generating prompt: {str(e)}")
+            raise
+
+    async def save_prompt_file(self, data: dict, output_path: str):
+        """Save the generated prompt to a file with proper formatting"""
+        try:
+            output_file = Path(output_path)
+            output_file.parent.mkdir(parents=True, exist_ok=True)
+            
+            # Use the prompt file content if available, otherwise build our own
+            if data.get('prompt_file_content'):
+                content = data['prompt_file_content']
+            else:
+                # Create a structured markdown document
+                title = data.get('lazy_prompt', '').capitalize()
+                content = f"""# {title}
+
+## Refined Prompt
+{data['refined_prompt']}
+
+## Domain Context
+- **Domain**: {data.get('domain', 'general').capitalize()}
+- **Expertise Level**: {data.get('expertise_level', 'intermediate').capitalize()}
+"""
+                
+                if data.get('detected_topics'):
+                    content += "\n## Key Topics\n"
+                    for topic in data['detected_topics']:
+                        content += f"\n### {topic}\n"
+                        if data.get('topic_details') and topic in data['topic_details']:
+                            content += f"{data['topic_details'][topic]}\n"
+
+                if data.get('recommended_references'):
+                    content += "\n## Recommended References\n"
+                    for ref in data['recommended_references']:
+                        content += f"- {ref}\n"
+
+            # Write the file
+            output_file.write_text(content)
+            logger.info(f"Prompt file saved to: {output_file}")
+            
+        except Exception as e:
+            logger.error(f"Error saving prompt file: {str(e)}")
+            raise
+
+async def generate_prompt_file(args):
+    """Generate a prompt file using command line arguments"""
+    generator = PromptGenerator(args.api_url, args.api_key)
+    
+    try:
+        await generator.setup()
+        logger.info(f"Generating prompt file for: {args.prompt}")
+        
+        data = await generator.generate_prompt(
+            prompt=args.prompt,
+            domain=args.domain,
+            expertise_level=args.expertise_level,
+            output_format=args.output_format
+        )
+        
+        await generator.save_prompt_file(data, args.output)
+        
+    finally:
+        await generator.cleanup()
+
+class IntegrationTester:
+    def __init__(self, base_url: str, api_key: str = None):
+        self.base_url = base_url
+        self.headers = {
+            "Content-Type": "application/json",
+            "X-API-Key": api_key
+        } if api_key else {"Content-Type": "application/json"}
+        self.session = None
+        self.test_results = []
+
+    async def setup(self):
+        """Initialize aiohttp session"""
+        self.session = aiohttp.ClientSession(headers=self.headers)
+
+    async def cleanup(self):
+        """Close aiohttp session"""
+        if self.session:
+            await self.session.close()
+
+    def record_result(self, test_name: str, passed: bool, error: str = None):
+        """Record test result"""
+        self.test_results.append({
+            "test": test_name,
+            "passed": passed,
+            "error": error,
+            "timestamp": datetime.now().isoformat()
+        })
+
+    async def test_health_check(self) -> bool:
+        """Test the health check endpoint"""
+        try:
+            async with self.session.get(f"{self.base_url}/health") as response:
+                data = await response.json()
+                is_healthy = (response.status == 200 and 
+                            data.get("status") == "healthy" and 
+                            data.get("redis") == "connected")
+                self.record_result("health_check", is_healthy)
+                return is_healthy
+        except Exception as e:
+            self.record_result("health_check", False, str(e))
+            return False
+
+    async def test_prompt_refinement(self) -> bool:
+        """Test the prompt refinement endpoint"""
+        test_cases = [
+            {
+                "name": "basic_prompt",
+                "payload": {
+                    "lazy_prompt": "what is docker"
+                }
+            },
+            {
+                "name": "advanced_prompt",
+                "payload": {
+                    "lazy_prompt": "explain kubernetes architecture",
+                    "domain": "architecture",
+                    "expertise_level": "expert",
+                    "output_format": "tutorial"
+                }
+            }
+        ]
+
+        all_passed = True
+        for case in test_cases:
+            try:
+                async with self.session.post(
+                    f"{self.base_url}/refine-prompt",
+                    json=case["payload"]
+                ) as response:
+                    data = await response.json()
+                    passed = (
+                        response.status == 200 and
+                        "refined_prompt" in data and
+                        "detected_topics" in data
+                    )
+                    self.record_result(f"prompt_refinement_{case['name']}", passed)
+                    all_passed = all_passed and passed
+            except Exception as e:
+                self.record_result(f"prompt_refinement_{case['name']}", False, str(e))
+                all_passed = False
+
+        return all_passed
+
+    async def test_error_handling(self) -> bool:
+        """Test error handling scenarios"""
+        test_cases = [
+            {
+                "name": "empty_prompt",
+                "payload": {"lazy_prompt": ""},
+                "expected_status": 400
+            },
+            {
+                "name": "invalid_domain",
+                "payload": {
+                    "lazy_prompt": "test",
+                    "domain": "invalid_domain"
+                },
+                "expected_status": 422
+            }
+        ]
+
+        all_passed = True
+        for case in test_cases:
+            try:
+                async with self.session.post(
+                    f"{self.base_url}/refine-prompt",
+                    json=case["payload"]
+                ) as response:
+                    passed = response.status == case["expected_status"]
+                    self.record_result(f"error_handling_{case['name']}", passed)
+                    all_passed = all_passed and passed
+            except Exception as e:
+                self.record_result(f"error_handling_{case['name']}", False, str(e))
+                all_passed = False
+
+        return all_passed
+
+    def print_results(self):
+        """Print test results in a formatted way"""
+        print("\n=== Integration Test Results ===")
+        total = len(self.test_results)
+        passed = sum(1 for r in self.test_results if r["passed"])
+        failed = total - passed
+
+        print(f"\nTotal Tests: {total}")
+        print(f"Passed: {passed}")
+        print(f"Failed: {failed}")
+        print("\nDetailed Results:")
+        print("=" * 50)
+
+        for result in self.test_results:
+            status = "✅ PASSED" if result["passed"] else "❌ FAILED"
+            print(f"\n{status} - {result['test']}")
+            if not result["passed"] and result["error"]:
+                print(f"Error: {result['error']}")
+
+        print("\n" + "=" * 50)
+
+async def run_tests():
+    """Main function to run all integration tests"""
+    tester = IntegrationTester(API_BASE_URL, TEST_API_KEY)
+    
+    try:
+        await tester.setup()
+        logger.info("Starting integration tests...")
+
+        # Run all tests
+        await tester.test_health_check()
+        await tester.test_prompt_refinement()
+        await tester.test_error_handling()
+
+    except Exception as e:
+        logger.error(f"Integration tests failed: {e}")
+        sys.exit(1)
+    finally:
+        await tester.cleanup()
+        tester.print_results()
+        
+        # Exit with appropriate status code
+        if any(not result["passed"] for result in tester.test_results):
+            sys.exit(1)
+        sys.exit(0)
+
+def main():
+    """Main function to either run tests or generate prompts"""
+    parser = argparse.ArgumentParser(description="SmartPrompt API Integration Tool")
+    subparsers = parser.add_subparsers(dest="command")
+    
+    # Test command
+    test_parser = subparsers.add_parser("test", help="Run integration tests")
+    
+    # Generate command
+    gen_parser = subparsers.add_parser("generate", help="Generate a prompt file")
+    gen_parser.add_argument("prompt", help="The prompt to process")
+    gen_parser.add_argument("--domain", default="general", 
+                           choices=["architecture", "development", "infrastructure", "security", "general"],
+                           help="Technical domain for the prompt")
+    gen_parser.add_argument("--expertise-level", default="intermediate",
+                           choices=["beginner", "intermediate", "expert"],
+                           help="Target expertise level")
+    gen_parser.add_argument("--output-format", default="detailed",
+                           choices=["simple", "detailed", "tutorial", "checklist"],
+                           help="Output format")
+    gen_parser.add_argument("--output", "-o", default="prompt.md",
+                           help="Output file path")
+    gen_parser.add_argument("--api-url", default=os.getenv("SMARTPROMPT_API_URL", API_BASE_URL),
+                           help="API URL (can also be set via SMARTPROMPT_API_URL env var)")
+    gen_parser.add_argument("--api-key", default=os.getenv("SMARTPROMPT_API_KEY"),
+                           help="API key (can also be set via SMARTPROMPT_API_KEY env var)")
+    gen_parser.add_argument("--no-best-practices", action="store_true",
+                           help="Disable inclusion of best practices")
+    gen_parser.add_argument("--no-examples", action="store_true",
+                           help="Disable inclusion of examples")
+    
+    args = parser.parse_args()
+    
+    if args.command == "test":
+        asyncio.run(run_tests())
+    elif args.command == "generate":
+        asyncio.run(generate_prompt_file(args))
+    else:
+        parser.print_help()
+        sys.exit(1)
+
+if __name__ == "__main__":
+    main()

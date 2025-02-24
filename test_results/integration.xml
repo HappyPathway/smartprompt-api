@@ -1,0 +1,646 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites><testsuite name="pytest" errors="0" failures="6" skipped="0" tests="9" time="361.034" timestamp="2025-02-23T21:34:58.432168+00:00" hostname="b51b9c64cc86"><testcase classname="tests.integration.test_api" name="test_api_health" time="0.057" /><testcase classname="tests.integration.test_api" name="test_basic_prompt_refinement" time="60.026"><failure message="httpx.ReadTimeout">@contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+&gt;           yield
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:256: in handle_async_request
+    raise exc from None
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:236: in handle_async_request
+    response = await connection.handle_async_request(
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection.py:103: in handle_async_request
+    return await self._connection.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:136: in handle_async_request
+    raise exc
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:106: in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:177: in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:217: in _receive_event
+    data = await self._network_stream.read(
+/usr/local/lib/python3.9/site-packages/httpcore/_backends/anyio.py:37: in read
+    return b""
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+map = {&lt;class 'TimeoutError'&gt;: &lt;class 'httpcore.ReadTimeout'&gt;, &lt;class 'anyio.BrokenResourceError'&gt;: &lt;class 'httpcore.ReadErr... 'anyio.ClosedResourceError'&gt;: &lt;class 'httpcore.ReadError'&gt;, &lt;class 'anyio.EndOfStream'&gt;: &lt;class 'httpcore.ReadError'&gt;}
+
+    @contextlib.contextmanager
+    def map_exceptions(map: ExceptionMapping) -&gt; typing.Iterator[None]:
+        try:
+            yield
+        except Exception as exc:  # noqa: PIE786
+            for from_exc, to_exc in map.items():
+                if isinstance(exc, from_exc):
+&gt;                   raise to_exc(exc) from exc
+E                   httpcore.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpcore/_exceptions.py:14: ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+api_client = &lt;httpx.AsyncClient object at 0xffff9b353be0&gt;
+
+    @pytest.mark.asyncio
+    async def test_basic_prompt_refinement(api_client: httpx.AsyncClient):
+        """Test basic prompt refinement functionality"""
+&gt;       response = await api_client.post("/refine-prompt", json={
+            "lazy_prompt": "what is docker"
+        })
+
+tests/integration/test_api.py:40: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+            yield
+        except Exception as exc:
+            mapped_exc = None
+    
+            for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
+                if not isinstance(exc, from_exc):
+                    continue
+                # We want to map to the most specific exception we can find.
+                # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+                # `httpx.ReadTimeout`, not just `httpx.TimeoutException`.
+                if mapped_exc is None or issubclass(to_exc, mapped_exc):
+                    mapped_exc = to_exc
+    
+            if mapped_exc is None:  # pragma: no cover
+                raise
+    
+            message = str(exc)
+&gt;           raise mapped_exc(message) from exc
+E           httpx.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:118: ReadTimeout</failure></testcase><testcase classname="tests.integration.test_api" name="test_advanced_prompt_refinement" time="60.059"><failure message="httpx.ReadTimeout">@contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+&gt;           yield
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:256: in handle_async_request
+    raise exc from None
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:236: in handle_async_request
+    response = await connection.handle_async_request(
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection.py:103: in handle_async_request
+    return await self._connection.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:136: in handle_async_request
+    raise exc
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:106: in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:177: in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:217: in _receive_event
+    data = await self._network_stream.read(
+/usr/local/lib/python3.9/site-packages/httpcore/_backends/anyio.py:37: in read
+    return b""
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+map = {&lt;class 'TimeoutError'&gt;: &lt;class 'httpcore.ReadTimeout'&gt;, &lt;class 'anyio.BrokenResourceError'&gt;: &lt;class 'httpcore.ReadErr... 'anyio.ClosedResourceError'&gt;: &lt;class 'httpcore.ReadError'&gt;, &lt;class 'anyio.EndOfStream'&gt;: &lt;class 'httpcore.ReadError'&gt;}
+
+    @contextlib.contextmanager
+    def map_exceptions(map: ExceptionMapping) -&gt; typing.Iterator[None]:
+        try:
+            yield
+        except Exception as exc:  # noqa: PIE786
+            for from_exc, to_exc in map.items():
+                if isinstance(exc, from_exc):
+&gt;                   raise to_exc(exc) from exc
+E                   httpcore.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpcore/_exceptions.py:14: ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+api_client = &lt;httpx.AsyncClient object at 0xffff9a78ef40&gt;
+
+    @pytest.mark.asyncio
+    async def test_advanced_prompt_refinement(api_client: httpx.AsyncClient):
+        """Test advanced prompt refinement with all options"""
+&gt;       response = await api_client.post("/refine-prompt", json={
+            "lazy_prompt": "explain kubernetes architecture",
+            "domain": "architecture",
+            "expertise_level": "expert",
+            "output_format": "tutorial",
+            "include_best_practices": True,
+            "include_examples": True
+        })
+
+tests/integration/test_api.py:51: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+            yield
+        except Exception as exc:
+            mapped_exc = None
+    
+            for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
+                if not isinstance(exc, from_exc):
+                    continue
+                # We want to map to the most specific exception we can find.
+                # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+                # `httpx.ReadTimeout`, not just `httpx.TimeoutException`.
+                if mapped_exc is None or issubclass(to_exc, mapped_exc):
+                    mapped_exc = to_exc
+    
+            if mapped_exc is None:  # pragma: no cover
+                raise
+    
+            message = str(exc)
+&gt;           raise mapped_exc(message) from exc
+E           httpx.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:118: ReadTimeout</failure></testcase><testcase classname="tests.integration.test_api" name="test_error_handling" time="0.059" /><testcase classname="tests.integration.test_api" name="test_concurrent_requests" time="60.085"><failure message="httpx.ReadTimeout">@contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+&gt;           yield
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:256: in handle_async_request
+    raise exc from None
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:236: in handle_async_request
+    response = await connection.handle_async_request(
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection.py:103: in handle_async_request
+    return await self._connection.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:136: in handle_async_request
+    raise exc
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:106: in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:177: in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:217: in _receive_event
+    data = await self._network_stream.read(
+/usr/local/lib/python3.9/site-packages/httpcore/_backends/anyio.py:37: in read
+    return b""
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+map = {&lt;class 'TimeoutError'&gt;: &lt;class 'httpcore.ReadTimeout'&gt;, &lt;class 'anyio.BrokenResourceError'&gt;: &lt;class 'httpcore.ReadErr... 'anyio.ClosedResourceError'&gt;: &lt;class 'httpcore.ReadError'&gt;, &lt;class 'anyio.EndOfStream'&gt;: &lt;class 'httpcore.ReadError'&gt;}
+
+    @contextlib.contextmanager
+    def map_exceptions(map: ExceptionMapping) -&gt; typing.Iterator[None]:
+        try:
+            yield
+        except Exception as exc:  # noqa: PIE786
+            for from_exc, to_exc in map.items():
+                if isinstance(exc, from_exc):
+&gt;                   raise to_exc(exc) from exc
+E                   httpcore.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpcore/_exceptions.py:14: ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+api_client = &lt;httpx.AsyncClient object at 0xffff9a7a3640&gt;
+
+    @pytest.mark.asyncio
+    async def test_concurrent_requests(api_client: httpx.AsyncClient):
+        """Test handling of concurrent requests"""
+        prompts = [
+            "what is terraform",
+            "explain docker",
+            "describe kubernetes",
+            "explain microservices"
+        ]
+    
+        async def make_request(prompt: str):
+            return await api_client.post("/refine-prompt", json={"lazy_prompt": prompt})
+    
+&gt;       responses = await asyncio.gather(*[
+            make_request(prompt) for prompt in prompts
+        ])
+
+tests/integration/test_api.py:95: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/integration/test_api.py:93: in make_request
+    return await api_client.post("/refine-prompt", json={"lazy_prompt": prompt})
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+            yield
+        except Exception as exc:
+            mapped_exc = None
+    
+            for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
+                if not isinstance(exc, from_exc):
+                    continue
+                # We want to map to the most specific exception we can find.
+                # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+                # `httpx.ReadTimeout`, not just `httpx.TimeoutException`.
+                if mapped_exc is None or issubclass(to_exc, mapped_exc):
+                    mapped_exc = to_exc
+    
+            if mapped_exc is None:  # pragma: no cover
+                raise
+    
+            message = str(exc)
+&gt;           raise mapped_exc(message) from exc
+E           httpx.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:118: ReadTimeout</failure></testcase><testcase classname="tests.integration.test_api" name="test_basic_prompt_refinement_with_cache" time="60.087"><failure message="httpx.ReadTimeout">@contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+&gt;           yield
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:256: in handle_async_request
+    raise exc from None
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:236: in handle_async_request
+    response = await connection.handle_async_request(
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection.py:103: in handle_async_request
+    return await self._connection.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:136: in handle_async_request
+    raise exc
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:106: in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:177: in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:217: in _receive_event
+    data = await self._network_stream.read(
+/usr/local/lib/python3.9/site-packages/httpcore/_backends/anyio.py:37: in read
+    return b""
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+map = {&lt;class 'TimeoutError'&gt;: &lt;class 'httpcore.ReadTimeout'&gt;, &lt;class 'anyio.BrokenResourceError'&gt;: &lt;class 'httpcore.ReadErr... 'anyio.ClosedResourceError'&gt;: &lt;class 'httpcore.ReadError'&gt;, &lt;class 'anyio.EndOfStream'&gt;: &lt;class 'httpcore.ReadError'&gt;}
+
+    @contextlib.contextmanager
+    def map_exceptions(map: ExceptionMapping) -&gt; typing.Iterator[None]:
+        try:
+            yield
+        except Exception as exc:  # noqa: PIE786
+            for from_exc, to_exc in map.items():
+                if isinstance(exc, from_exc):
+&gt;                   raise to_exc(exc) from exc
+E                   httpcore.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpcore/_exceptions.py:14: ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+api_client = &lt;httpx.AsyncClient object at 0xffff9b084e50&gt;
+redis_client = Redis&lt;ConnectionPool&lt;Connection&lt;host=redis,port=6379,db=0&gt;&gt;&gt;
+
+    @pytest.mark.asyncio
+    async def test_basic_prompt_refinement_with_cache(api_client: httpx.AsyncClient, redis_client: aioredis.Redis):
+        """Test that prompt refinement works and uses caching properly"""
+        test_prompt = "test_cache: what is docker"
+    
+        # First request should not be cached
+&gt;       response1 = await api_client.post("/refine-prompt", json={
+            "lazy_prompt": test_prompt
+        })
+
+tests/integration/test_api.py:109: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+            yield
+        except Exception as exc:
+            mapped_exc = None
+    
+            for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
+                if not isinstance(exc, from_exc):
+                    continue
+                # We want to map to the most specific exception we can find.
+                # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+                # `httpx.ReadTimeout`, not just `httpx.TimeoutException`.
+                if mapped_exc is None or issubclass(to_exc, mapped_exc):
+                    mapped_exc = to_exc
+    
+            if mapped_exc is None:  # pragma: no cover
+                raise
+    
+            message = str(exc)
+&gt;           raise mapped_exc(message) from exc
+E           httpx.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:118: ReadTimeout</failure></testcase><testcase classname="tests.integration.test_api" name="test_cache_with_different_parameters" time="60.055"><failure message="httpx.ReadTimeout">@contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+&gt;           yield
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:256: in handle_async_request
+    raise exc from None
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:236: in handle_async_request
+    response = await connection.handle_async_request(
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection.py:103: in handle_async_request
+    return await self._connection.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:136: in handle_async_request
+    raise exc
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:106: in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:177: in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:217: in _receive_event
+    data = await self._network_stream.read(
+/usr/local/lib/python3.9/site-packages/httpcore/_backends/anyio.py:37: in read
+    return b""
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+map = {&lt;class 'TimeoutError'&gt;: &lt;class 'httpcore.ReadTimeout'&gt;, &lt;class 'anyio.BrokenResourceError'&gt;: &lt;class 'httpcore.ReadErr... 'anyio.ClosedResourceError'&gt;: &lt;class 'httpcore.ReadError'&gt;, &lt;class 'anyio.EndOfStream'&gt;: &lt;class 'httpcore.ReadError'&gt;}
+
+    @contextlib.contextmanager
+    def map_exceptions(map: ExceptionMapping) -&gt; typing.Iterator[None]:
+        try:
+            yield
+        except Exception as exc:  # noqa: PIE786
+            for from_exc, to_exc in map.items():
+                if isinstance(exc, from_exc):
+&gt;                   raise to_exc(exc) from exc
+E                   httpcore.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpcore/_exceptions.py:14: ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+api_client = &lt;httpx.AsyncClient object at 0xffff9a776c70&gt;
+
+    @pytest.mark.asyncio
+    async def test_cache_with_different_parameters(api_client: httpx.AsyncClient):
+        """Test that cache varies with different request parameters"""
+        base_prompt = "test_cache: explain kubernetes"
+    
+        # First request with default parameters
+&gt;       response1 = await api_client.post("/refine-prompt", json={
+            "lazy_prompt": base_prompt
+        })
+
+tests/integration/test_api.py:131: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+            yield
+        except Exception as exc:
+            mapped_exc = None
+    
+            for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
+                if not isinstance(exc, from_exc):
+                    continue
+                # We want to map to the most specific exception we can find.
+                # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+                # `httpx.ReadTimeout`, not just `httpx.TimeoutException`.
+                if mapped_exc is None or issubclass(to_exc, mapped_exc):
+                    mapped_exc = to_exc
+    
+            if mapped_exc is None:  # pragma: no cover
+                raise
+    
+            message = str(exc)
+&gt;           raise mapped_exc(message) from exc
+E           httpx.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:118: ReadTimeout</failure></testcase><testcase classname="tests.integration.test_api" name="test_health_check" time="0.016" /><testcase classname="tests.integration.test_api" name="test_topic_details_and_prompt_file" time="60.037"><failure message="httpx.ReadTimeout">@contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+&gt;           yield
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:101: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:256: in handle_async_request
+    raise exc from None
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection_pool.py:236: in handle_async_request
+    response = await connection.handle_async_request(
+/usr/local/lib/python3.9/site-packages/httpcore/_async/connection.py:103: in handle_async_request
+    return await self._connection.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:136: in handle_async_request
+    raise exc
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:106: in handle_async_request
+    ) = await self._receive_response_headers(**kwargs)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:177: in _receive_response_headers
+    event = await self._receive_event(timeout=timeout)
+/usr/local/lib/python3.9/site-packages/httpcore/_async/http11.py:217: in _receive_event
+    data = await self._network_stream.read(
+/usr/local/lib/python3.9/site-packages/httpcore/_backends/anyio.py:37: in read
+    return b""
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+map = {&lt;class 'TimeoutError'&gt;: &lt;class 'httpcore.ReadTimeout'&gt;, &lt;class 'anyio.BrokenResourceError'&gt;: &lt;class 'httpcore.ReadErr... 'anyio.ClosedResourceError'&gt;: &lt;class 'httpcore.ReadError'&gt;, &lt;class 'anyio.EndOfStream'&gt;: &lt;class 'httpcore.ReadError'&gt;}
+
+    @contextlib.contextmanager
+    def map_exceptions(map: ExceptionMapping) -&gt; typing.Iterator[None]:
+        try:
+            yield
+        except Exception as exc:  # noqa: PIE786
+            for from_exc, to_exc in map.items():
+                if isinstance(exc, from_exc):
+&gt;                   raise to_exc(exc) from exc
+E                   httpcore.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpcore/_exceptions.py:14: ReadTimeout
+
+The above exception was the direct cause of the following exception:
+
+api_client = &lt;httpx.AsyncClient object at 0xffff9a7724f0&gt;
+
+    @pytest.mark.asyncio
+    async def test_topic_details_and_prompt_file(api_client: httpx.AsyncClient):
+        """Test that the API generates detailed topic information and prompt files"""
+&gt;       response = await api_client.post("/refine-prompt", json={
+            "lazy_prompt": "explain terraform modules",
+            "domain": "infrastructure",
+            "expertise_level": "intermediate",
+            "output_format": "detailed"
+        })
+
+tests/integration/test_api.py:160: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1859: in post
+    return await self.request(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1540: in request
+    return await self.send(request, auth=auth, follow_redirects=follow_redirects)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1629: in send
+    response = await self._send_handling_auth(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1657: in _send_handling_auth
+    response = await self._send_handling_redirects(
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1694: in _send_handling_redirects
+    response = await self._send_single_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_client.py:1730: in _send_single_request
+    response = await transport.handle_async_request(request)
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:394: in handle_async_request
+    resp = await self._pool.handle_async_request(req)
+/usr/local/lib/python3.9/contextlib.py:137: in __exit__
+    self.gen.throw(typ, value, traceback)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+    @contextlib.contextmanager
+    def map_httpcore_exceptions() -&gt; typing.Iterator[None]:
+        global HTTPCORE_EXC_MAP
+        if len(HTTPCORE_EXC_MAP) == 0:
+            HTTPCORE_EXC_MAP = _load_httpcore_exceptions()
+        try:
+            yield
+        except Exception as exc:
+            mapped_exc = None
+    
+            for from_exc, to_exc in HTTPCORE_EXC_MAP.items():
+                if not isinstance(exc, from_exc):
+                    continue
+                # We want to map to the most specific exception we can find.
+                # Eg if `exc` is an `httpcore.ReadTimeout`, we want to map to
+                # `httpx.ReadTimeout`, not just `httpx.TimeoutException`.
+                if mapped_exc is None or issubclass(to_exc, mapped_exc):
+                    mapped_exc = to_exc
+    
+            if mapped_exc is None:  # pragma: no cover
+                raise
+    
+            message = str(exc)
+&gt;           raise mapped_exc(message) from exc
+E           httpx.ReadTimeout
+
+/usr/local/lib/python3.9/site-packages/httpx/_transports/default.py:118: ReadTimeout</failure></testcase></testsuite></testsuites>
