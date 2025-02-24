@@ -1,36 +1,47 @@
 steps:
   # Build the container image
-  - name: 'gcr.io/cloud-builders/docker'
-    args: [
-      'build',
-      '-t', '${_IMAGE}:$COMMIT_SHA',
-      '-t', '${_IMAGE}:latest',
-      '-f', '${_DOCKERFILE_PATH}',
-      '.'
-    ]
+  - name: "gcr.io/cloud-builders/docker"
+    args:
+      [
+        "build",
+        "-t",
+        "${_IMAGE}:$COMMIT_SHA",
+        "-t",
+        "${_IMAGE}:latest",
+        "-f",
+        "${_DOCKERFILE_PATH}",
+        ".",
+      ]
 
   # Push the images to Container Registry
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '${_IMAGE}:$COMMIT_SHA']
-  - name: 'gcr.io/cloud-builders/docker'
-    args: ['push', '${_IMAGE}:latest']
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE}:$COMMIT_SHA"]
+  - name: "gcr.io/cloud-builders/docker"
+    args: ["push", "${_IMAGE}:latest"]
 
   # Deploy to Cloud Run if enabled
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: 'gcloud'
-    args: [
-      'run', 'deploy', 'smartprompt-api-${_REGION}',
-      '--image', '${_IMAGE}:$COMMIT_SHA',
-      '--region', '${_REGION}',
-      '--platform', 'managed'
-    ]
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk"
+    entrypoint: "gcloud"
+    args:
+      [
+        "run",
+        "deploy",
+        "smartprompt-api-${_REGION}",
+        "--image",
+        "${_IMAGE}:$COMMIT_SHA",
+        "--region",
+        "${_REGION}",
+        "--platform",
+        "managed",
+      ]
 
 timeout: 1800s
 options:
-  machineType: 'E2_HIGHCPU_8'
+  machineType: "E2_HIGHCPU_8"
+  logging: CLOUD_LOGGING_ONLY
   env:
-    - 'DOCKER_BUILDKIT=1'
+    - "DOCKER_BUILDKIT=1"
 
 images:
-  - '${_IMAGE}:$COMMIT_SHA'
-  - '${_IMAGE}:latest'
+  - "${_IMAGE}:$COMMIT_SHA"
+  - "${_IMAGE}:latest"
